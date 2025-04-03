@@ -73,7 +73,7 @@ const verifyToken = (allowedTypes) => async (req, res, next) => {
       .get();
 
     // Verificar si se encontró algún documento
-    if (tokenQuery.empty) {
+    if (tokenQuery.empty) { 
       return res
         .status(401)
         .json({ message: "Token inválido o no encontrado." });

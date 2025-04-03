@@ -28,11 +28,11 @@ admin.initializeApp({
 const db = admin.firestore();
 
 const app = express();
-const httpServer = createServer(app); // Crea un servidor HTTP
+const httpServer = createServer(app); //Crea un servidor HTTP
 const io = new Server(httpServer, {
-  // Crea el servidor Socket.io
+  //Crea el servidor Socket.io
   cors: {
-    origin: "*", // Ajusta según tu frontend
+    origin: "*", //Ajusta según tu frontend
     methods: ["GET", "POST"],
   },
 });
@@ -73,29 +73,29 @@ const verifyToken = (allowedTypes) => async (req, res, next) => {
   }
 
   try {
-    // Consultar la colección de tokens en Firestore donde el campo "token" sea igual al token proporcionado
+    //Consultar la colección de tokens en Firestore donde el campo "token" sea igual al token proporcionado
     const tokenQuery = await sessionTokensCollection
       .where("token", "==", token)
       .get();
 
-    // Verificar si se encontró algún documento
+    //Verificar si se encontró algún documento
     if (tokenQuery.empty) {
       return res
         .status(401)
         .json({ message: "Token inválido o no encontrado." });
     }
 
-    // Obtener el primer documento que coincida (asumiendo que los tokens son únicos)
+    //Obtener el primer documento que coincida (asumiendo que los tokens son únicos)
     const tokenDoc = tokenQuery.docs[0];
     const tokenData = tokenDoc.data();
 
-    // Verificar si el token ha expirado
+    //Verificar si el token ha expirado
     const now = new Date();
     if (tokenData.expires_date.toDate() < now) {
       return res.status(401).json({ message: "Token ha expirado." });
     }
 
-    // Obtener el usuario asociado al token desde Firestore
+    //Obtener el usuario asociado al token desde Firestore
     const userDoc = await usersCollection.doc(tokenData.user_id).get();
 
     if (!userDoc.exists) {
@@ -104,14 +104,14 @@ const verifyToken = (allowedTypes) => async (req, res, next) => {
 
     const userData = userDoc.data();
 
-    // Verificar si el tipo de usuario está permitido
+    //Verificar si el tipo de usuario está permitido
     if (!allowedTypes.includes(userData.type)) {
       return res
         .status(403)
         .json({ message: "Acceso denegado. Permisos insuficientes." });
     }
 
-    // Adjuntar la información del usuario al objeto `req`
+    //Adjuntar la información del usuario al objeto `req`
     req.user = { id: tokenData.user_id, type: userData.type };
     next();
   } catch (error) {
@@ -127,7 +127,7 @@ io.use((socket, next) => {
     return next(new Error("Authentication error"));
   }
 
-  // Verificación simplificada del token - deberías usar tu lógica de verifyToken
+  //Verificación simplificada del token - deberías usar tu lógica de verifyToken
   sessionTokensCollection
     .where("token", "==", token)
     .get()
@@ -143,21 +143,21 @@ io.use((socket, next) => {
         return next(new Error("Token expired"));
       }
 
-      // Adjunta la información del usuario al socket
+      //Adjunta la información del usuario al socket
       socket.userId = tokenData.user_id;
       next();
     })
     .catch((error) => next(error));
 });
 
-// Manejo de conexiones WebSocket
+//Manejo de conexiones WebSocket
 io.on("connection", (socket) => {
   console.log("New WebSocket connection:", socket.userId);
 
-  // Unirse a la sala del usuario para mensajes privados
+  //Unirse a la sala del usuario para mensajes privados
   socket.join(socket.userId);
 
-  // Manejar unirse a salas de chat específicas
+  //Manejar unirse a salas de chat específicas
   socket.on("joinChat", (chatId) => {
     socket.join(chatId);
     console.log(`User ${socket.userId} joined chat ${chatId}`);
@@ -179,8 +179,8 @@ app.get("/messages/:contactId", verifyToken(["mortal"]), async (req, res) => {
   const { limit = 50, before } = req.query;
 
   try {
-    // Solución temporal: Usar una consulta más simple que no requiere índice compuesto
-    // En lugar de filtrar por array-contains y ordenar por timestamp
+    //Solución temporal: Usar una consulta más simple que no requiere índice compuesto
+    //En lugar de filtrar por array-contains y ordenar por timestamp
     const messagesSnapshot = await messagesCollection
       .where("participants", "array-contains", userId)
       .get();
@@ -189,7 +189,7 @@ app.get("/messages/:contactId", verifyToken(["mortal"]), async (req, res) => {
       return res.status(200).json({ messages: [] });
     }
 
-    // Filtrar mensajes para incluir solo los que son entre el usuario actual y el contacto seleccionado
+    //Filtrar mensajes para incluir solo los que son entre el usuario actual y el contacto seleccionado
     let messages = [];
     messagesSnapshot.forEach((doc) => {
       const messageData = doc.data();
@@ -209,12 +209,12 @@ app.get("/messages/:contactId", verifyToken(["mortal"]), async (req, res) => {
       }
     });
 
-    // Ordenar mensajes manualmente por timestamp (más antiguos primero)
+    //Ordenar mensajes manualmente por timestamp (más antiguos primero)
     messages = messages.sort((a, b) => {
       return new Date(a.timestamp) - new Date(b.timestamp);
     });
 
-    // Aplicar límite después de filtrar y ordenar
+    //Aplicar límite después de filtrar y ordenar
     if (before) {
       const beforeTimestamp = new Date(before);
       messages = messages.filter(
@@ -224,7 +224,7 @@ app.get("/messages/:contactId", verifyToken(["mortal"]), async (req, res) => {
 
     messages = messages.slice(0, Number.parseInt(limit));
 
-    // Marcar mensajes como leídos si el usuario actual es el receptor
+    //Marcar mensajes como leídos si el usuario actual es el receptor
     const batch = db.batch();
     messagesSnapshot.forEach((doc) => {
       const messageData = doc.data();
@@ -252,7 +252,7 @@ app.get("/messages/:contactId", verifyToken(["mortal"]), async (req, res) => {
   }
 });
 
-// Endpoint para enviar un nuevo mensaje
+//Endpoint para enviar un nuevo mensaje
 app.post("/send-message", verifyToken(["mortal"]), async (req, res) => {
   const senderId = req.user.id;
   const { receiverId, content } = req.body;
@@ -264,7 +264,7 @@ app.post("/send-message", verifyToken(["mortal"]), async (req, res) => {
   }
 
   try {
-    // Verificar que el destinatario existe y es un contacto del remitente
+    //Verificar que el destinatario existe y es un contacto del remitente
     const senderDoc = await usersCollection.doc(senderId).get();
     if (!senderDoc.exists) {
       return res
@@ -279,7 +279,7 @@ app.post("/send-message", verifyToken(["mortal"]), async (req, res) => {
         .json({ message: "El destinatario no es un contacto del remitente" });
     }
 
-    // Crear el nuevo mensaje
+    //Crear el nuevo mensaje
     const newMessage = {
       senderId,
       receiverId,
@@ -291,25 +291,60 @@ app.post("/send-message", verifyToken(["mortal"]), async (req, res) => {
 
     const messageRef = await messagesCollection.add(newMessage);
 
-    // Actualizar el último mensaje en ambos usuarios
-    await usersCollection.doc(senderId).update({
-      lastMessageWith: {
-        [receiverId]: {
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          content,
-        },
+    //Obtener el mensaje con el timestamp actualizado para enviarlo por WebSocket
+    const messageDoc = await messageRef.get();
+    const messageData = messageDoc.data();
+    const messageForSocket = {
+      id: messageRef.id,
+      ...messageData,
+      timestamp: messageData.timestamp.toDate().toISOString(),
+    };
+
+    //Obtener los datos actuales del remitente para preservar otros últimos mensajes
+    const currentSenderData = await usersCollection.doc(senderId).get();
+    const currentSenderLastMessages =
+      currentSenderData.data().lastMessageWith || {};
+
+    //Actualizar solo el último mensaje para este contacto específico
+    const updatedSenderLastMessages = {
+      ...currentSenderLastMessages,
+      [receiverId]: {
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        content,
       },
+    };
+
+    //Actualizar el remitente con el objeto completo de últimos mensajes
+    await usersCollection.doc(senderId).update({
+      lastMessageWith: updatedSenderLastMessages,
     });
 
-    await usersCollection.doc(receiverId).update({
-      lastMessageWith: {
-        [senderId]: {
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          content,
-          unread: true,
-        },
+    //Obtener los datos actuales del destinatario para preservar otros últimos mensajes
+    const receiverDoc = await usersCollection.doc(receiverId).get();
+    const currentReceiverLastMessages = receiverDoc.exists
+      ? receiverDoc.data().lastMessageWith || {}
+      : {};
+
+    //Actualizar solo el último mensaje para este contacto específico
+    const updatedReceiverLastMessages = {
+      ...currentReceiverLastMessages,
+      [senderId]: {
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        content,
+        unread: true,
       },
+    };
+
+    //Actualizar el destinatario con el objeto completo de últimos mensajes
+    await usersCollection.doc(receiverId).update({
+      lastMessageWith: updatedReceiverLastMessages,
     });
+
+    //Enviar el mensaje a través de WebSocket
+    io.to(receiverId).emit("newMessage", messageForSocket);
+
+    //También enviar al remitente para actualizar múltiples pestañas
+    io.to(senderId).emit("messageSent", messageForSocket);
 
     res.status(201).json({
       message: "Mensaje enviado exitosamente",
@@ -321,13 +356,13 @@ app.post("/send-message", verifyToken(["mortal"]), async (req, res) => {
   }
 });
 
-// Endpoint para marcar mensajes como leídos
+//Endpoint para marcar mensajes como leídos
 app.post("/mark-read/:contactId", verifyToken(["mortal"]), async (req, res) => {
   const userId = req.user.id;
   const { contactId } = req.params;
 
   try {
-    // Buscar todos los mensajes no leídos enviados por el contacto al usuario
+    //Buscar todos los mensajes no leídos enviados por el contacto al usuario
     const unreadMessagesQuery = await messagesCollection
       .where("receiverId", "==", userId)
       .where("senderId", "==", contactId)
@@ -338,18 +373,31 @@ app.post("/mark-read/:contactId", verifyToken(["mortal"]), async (req, res) => {
       return res.status(200).json({ message: "No hay mensajes sin leer" });
     }
 
-    // Marcar todos los mensajes como leídos
+    //Marcar todos los mensajes como leídos
     const batch = db.batch();
     unreadMessagesQuery.forEach((doc) => {
       batch.update(doc.ref, { read: true });
     });
 
-    // Actualizar el estado de lectura en el usuario
-    await usersCollection.doc(userId).update({
-      [`lastMessageWith.${contactId}.unread`]: false,
-    });
+    //Obtener los datos actuales del usuario para preservar otros últimos mensajes
+    const userDoc = await usersCollection.doc(userId).get();
+    const currentLastMessages = userDoc.data().lastMessageWith || {};
+
+    //Verificar si existe un último mensaje con este contacto
+    if (currentLastMessages[contactId]) {
+      //Actualizar solo el estado de lectura para este contacto específico
+      currentLastMessages[contactId].unread = false;
+
+      //Actualizar el usuario con el objeto completo de últimos mensajes
+      await usersCollection.doc(userId).update({
+        lastMessageWith: currentLastMessages,
+      });
+    }
 
     await batch.commit();
+
+    //Notificar al remitente que sus mensajes han sido leídos
+    io.to(contactId).emit("messagesRead", { by: userId });
 
     res.status(200).json({ message: "Mensajes marcados como leídos" });
   } catch (error) {
@@ -358,7 +406,7 @@ app.post("/mark-read/:contactId", verifyToken(["mortal"]), async (req, res) => {
   }
 });
 
-// Cambia app.listen por httpServer.listen para manejar tanto HTTP como WebSocket
+//Cambia app.listen por httpServer.listen para manejar tanto HTTP como WebSocket
 httpServer.listen(PORT, () => {
   console.log(
     `Messages service running on port ${PORT} with WebSocket support`
